@@ -1,7 +1,9 @@
+import jwt
 from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.models.user import User, DoctorProfile
 from app.models.appointment import Appointment, SlotHold
@@ -19,10 +21,10 @@ def get_doctors(
 ):
     query = db.query(DoctorProfile).join(User)
 
-    if specialisation:
+    if specialisation and specialisation.lower() != "all":
         query = query.filter(DoctorProfile.specialisation == specialisation)
-    if search:
-        search_pattern = f"%{search}%"
+    if search and search.strip():
+        search_pattern = f"%{search.strip()}%"
         query = query.filter(
             (User.name.ilike(search_pattern)) | 
             (DoctorProfile.specialisation.ilike(search_pattern)) |
@@ -93,11 +95,21 @@ def get_doctor_by_id(id: str, db: Session = Depends(get_db)):
 def get_doctor_availability(
     id: str,
     date: str = Query(..., description="YYYY-MM-DD"),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     p = db.query(DoctorProfile).filter(DoctorProfile.id == id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Doctor not found")
+
+    current_user_id = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            token = authorization.split(" ")[1]
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            current_user_id = payload.get("id")
+        except Exception:
+            pass
 
     day_name = get_day_name(date)
     working_days = [d.strip() for d in p.working_days.split(",")]
@@ -143,21 +155,32 @@ def get_doctor_availability(
         SlotHold.status == "ACTIVE",
         SlotHold.expires_at > now
     ).all()
-    held_times = {h.start_time for h in active_holds}
+
+    held_by_user_map = {h.start_time: h.patient_id for h in active_holds}
 
     formatted_slots = []
     for s in raw_slots:
         st = s["startTime"]
+        is_avail = True
         slot_status = "AVAILABLE"
+
         if st in booked_times:
             slot_status = "BOOKED"
-        elif st in held_times:
-            slot_status = "HELD"
+            is_avail = False
+        elif st in held_by_user_map:
+            holder_id = held_by_user_map[st]
+            if current_user_id and holder_id == current_user_id:
+                slot_status = "HELD_BY_YOU"
+                is_avail = False
+            else:
+                slot_status = "HELD_BY_OTHER"
+                is_avail = False
 
         formatted_slots.append({
             "startTime": st,
             "endTime": s["endTime"],
-            "status": slot_status
+            "status": slot_status,
+            "isAvailable": is_avail
         })
 
     return {

@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.models.user import User, DoctorProfile
 from app.models.appointment import Appointment, SlotHold
@@ -25,6 +26,10 @@ def hold_slot(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    doctor = db.query(DoctorProfile).filter(DoctorProfile.id == data.doctorId).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
     hold = booking_service.hold_slot(
         db,
         doctor_id=data.doctorId,
@@ -36,16 +41,17 @@ def hold_slot(
 
     return {
         "success": True,
-        "message": f"Slot reserved for {hold.expires_at.strftime('%H:%M:%S')} UTC",
+        "message": f"Slot reserved for 10 minutes",
         "hold": {
-            "id": hold.id,
+            "holdId": hold.id,
             "doctorId": hold.doctor_id,
-            "patientId": hold.patient_id,
+            "doctorName": doctor.user.name,
+            "specialisation": doctor.specialisation,
             "date": hold.date,
             "startTime": hold.start_time,
             "endTime": hold.end_time,
             "expiresAt": hold.expires_at.isoformat() + "Z",
-            "status": hold.status
+            "holdMinutes": settings.SLOT_HOLD_DURATION_MINUTES
         }
     }
 
@@ -112,7 +118,6 @@ def get_patient_medications(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Fetch completed appointments for this patient with prescriptions
     appts = db.query(Appointment).filter(
         Appointment.patient_id == current_user.id,
         Appointment.status == "COMPLETED"
@@ -234,7 +239,6 @@ def submit_consultation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    doc_id = current_user.doctor_profile.id if current_user.doctor_profile else None
     prescs = [p.dict() for p in data.prescriptions] if data.prescriptions else []
     
     appt = booking_service.submit_consultation(
