@@ -1,4 +1,4 @@
-# CarePulse | Healthcare Appointment & Follow-up Manager (Python FastAPI)
+# CarePulse | Healthcare Appointment & Follow-up Manager 
 
 An enterprise-grade, full-stack healthcare appointment and follow-up management platform featuring a **Python FastAPI backend**, role-based portals for **Patients**, **Doctors**, and **Admins**, powered by **AI clinical pre-visit triage & post-visit care plans**, **atomic slot booking with 10-minute hold locks**, **doctor leave conflict resolution**, **Google Calendar OAuth 2.0 sync**, and **automated APScheduler background medication & email notification queues**.
 
