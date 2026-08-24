@@ -1,6 +1,11 @@
-# Dependencies
+# Dependencies & Virtual Environments
 node_modules/
 .pnpm-store/
+venv/
+server/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
 
 # Builds & Transpiled Code
 dist/
@@ -10,8 +15,8 @@ build/
 # Database files
 *.db
 *.db-journal
-server/prisma/dev.db
-server/prisma/dev.db-journal
+server/dev.db
+server/dev.db-journal
 
 # Environment & Secrets
 .env
