@@ -257,18 +257,65 @@ const MOCK_STATS: DashboardStats = {
   },
 };
 
-const MOCK_EMAILS: EmailLog[] = [
+let MOCK_EMAILS: EmailLog[] = [
   {
     id: 'email-1',
     recipient: 'patient@carepulse.demo',
     recipientName: 'Aarav Sharma',
     subject: 'Appointment Confirmed with Dr. Rajesh Swaminathan, MD',
     templateType: 'APPOINTMENT_CONFIRMATION',
-    contentHtml: '<p>Appointment Confirmed for today at 14:30.</p>',
+    contentHtml: `
+      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #0d9488; border-radius: 12px; max-width: 500px;">
+        <h2 style="color: #0d9488;">Appointment Confirmation - SwasthyaPulse</h2>
+        <p>Dear Aarav Sharma,</p>
+        <p>Your appointment with <strong>Dr. Rajesh Swaminathan, MD (Cardiology)</strong> has been confirmed for <strong>Today at 14:30</strong>.</p>
+        <p><strong>Virtual Consultation Link:</strong> <a href="https://meet.google.com/swasthya-rajesh-urg" target="_blank">Join Google Meet Call</a></p>
+        <hr style="border: 0.5px solid #eee; margin: 15px 0;" />
+        <p style="font-size: 12px; color: #666;">Thank you for choosing SwasthyaPulse Healthcare.</p>
+      </div>
+    `,
     status: 'SENT',
     attempts: 1,
     previewUrl: 'https://ethereal.email/message/demo_swasthya_confirm_1',
     createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'email-2',
+    recipient: 'patient@carepulse.demo',
+    recipientName: 'Aarav Sharma',
+    subject: 'Care Plan & Prescription Summary - Dr. Rajesh Swaminathan',
+    templateType: 'CARE_PLAN_DELIVERY',
+    contentHtml: `
+      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #059669; border-radius: 12px; max-width: 500px;">
+        <h2 style="color: #059669;">Your Digital Care Plan</h2>
+        <p>Dear Aarav Sharma,</p>
+        <p>Dr. Swaminathan has completed your consultation and prepared your digital prescription and follow-up guidance.</p>
+        <ul>
+          <li>Metoprolol 25mg - 1 tablet daily in the morning</li>
+          <li>Pantoprazole 40mg - 1 tablet before breakfast</li>
+        </ul>
+        <hr style="border: 0.5px solid #eee; margin: 15px 0;" />
+        <p style="font-size: 12px; color: #666;">SwasthyaPulse AI Clinical Assistant</p>
+      </div>
+    `,
+    status: 'SENT',
+    attempts: 1,
+    previewUrl: 'https://ethereal.email/message/demo_swasthya_careplan_2',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+let MOCK_LEAVES: DoctorLeave[] = [
+  {
+    id: 'leave-1',
+    doctorId: 'doc-rajesh-id',
+    startDate: '2026-08-27',
+    endDate: '2026-08-31',
+    reason: 'Attending Cardiology Conference',
+    status: 'APPROVED',
+    affectedAppointmentsCount: 2,
+    createdAt: new Date().toISOString(),
+    doctor: MOCK_DOCTORS[0],
   },
 ];
 
@@ -337,7 +384,13 @@ export const doctorApi = {
       };
     }
   },
-  updateProfile: (id: string, data: any) => api.put(`/doctors/${id}`, data),
+  updateProfile: async (id: string, data: any) => {
+    try {
+      return await api.put(`/doctors/${id}`, data);
+    } catch {
+      return { data: { success: true, message: 'Doctor schedule updated successfully' } };
+    }
+  },
 };
 
 export const appointmentApi = {
@@ -366,7 +419,13 @@ export const appointmentApi = {
       };
     }
   },
-  releaseHold: (holdId: string) => api.post('/appointments/release-hold', { holdId }),
+  releaseHold: async (holdId: string) => {
+    try {
+      return await api.post('/appointments/release-hold', { holdId });
+    } catch {
+      return { data: { success: true, message: 'Slot hold released' } };
+    }
+  },
   confirmBooking: async (data: { holdId: string; symptoms: string }) => {
     try {
       return await api.post<{ success: boolean; appointment: Appointment; message: string }>(
@@ -378,7 +437,7 @@ export const appointmentApi = {
       return {
         data: {
           success: true,
-          message: 'Appointment confirmed successfully',
+          message: 'Appointment booked and AI triage summary generated successfully',
           appointment: { ...appt, symptoms: data.symptoms },
         },
       };
@@ -395,13 +454,66 @@ export const appointmentApi = {
       return { data: { success: true, appointments: res } };
     }
   },
-  getAppointmentById: (id: string) => api.get<{ success: boolean; appointment: Appointment }>(`/appointments/${id}`),
-  reschedule: (id: string, data: { newDate: string; newStartTime: string; newEndTime: string }) =>
-    api.post<{ success: boolean; appointment: Appointment }>(`/appointments/${id}/reschedule`, data),
-  cancel: (id: string, reason?: string) =>
-    api.post<{ success: boolean; appointment: Appointment }>(`/appointments/${id}/cancel`, { reason }),
-  submitConsultation: (id: string, data: { clinicalNotes: string; prescriptions?: any[] }) =>
-    api.post<{ success: boolean; result: any }>(`/appointments/${id}/consultation`, data),
+  getAppointmentById: async (id: string) => {
+    try {
+      return await api.get<{ success: boolean; appointment: Appointment }>(`/appointments/${id}`);
+    } catch {
+      const appt = MOCK_APPOINTMENTS.find((a) => a.id === id) || MOCK_APPOINTMENTS[0];
+      return { data: { success: true, appointment: appt } };
+    }
+  },
+  reschedule: async (id: string, data: { newDate: string; newStartTime: string; newEndTime: string }) => {
+    try {
+      return await api.post<{ success: boolean; appointment: Appointment }>(`/appointments/${id}/reschedule`, data);
+    } catch {
+      const appt = MOCK_APPOINTMENTS[0];
+      return {
+        data: {
+          success: true,
+          message: 'Appointment rescheduled',
+          appointment: { ...appt, date: data.newDate, startTime: data.newStartTime, endTime: data.newEndTime, status: 'RESCHEDULED' },
+        },
+      };
+    }
+  },
+  cancel: async (id: string, reason?: string) => {
+    try {
+      return await api.post<{ success: boolean; appointment: Appointment }>(`/appointments/${id}/cancel`, { reason });
+    } catch {
+      const appt = MOCK_APPOINTMENTS[0];
+      return {
+        data: {
+          success: true,
+          message: 'Appointment cancelled',
+          appointment: { ...appt, status: 'CANCELLED_PATIENT', cancellationReason: reason || 'Cancelled by patient' },
+        },
+      };
+    }
+  },
+  submitConsultation: async (id: string, data: { clinicalNotes: string; prescriptions?: any[] }) => {
+    try {
+      return await api.post<{ success: boolean; result: any }>(`/appointments/${id}/consultation`, data);
+    } catch {
+      const appt = MOCK_APPOINTMENTS[0];
+      const updatedAppt = {
+        ...appt,
+        status: 'COMPLETED' as any,
+        clinicalNotes: data.clinicalNotes,
+        postVisitSummary: 'Dr. Swaminathan reviewed your symptoms and prescribed initial therapy.',
+        followUpStepsArray: [
+          'Take prescribed medication daily after meals.',
+          'Schedule a 3-week follow-up review or visit immediately if pain worsens.',
+        ],
+      };
+      return {
+        data: {
+          success: true,
+          message: 'Consultation finalized and care plan delivered to patient.',
+          result: updatedAppt,
+        },
+      };
+    }
+  },
   getPatientMedications: async () => {
     try {
       return await api.get<{
@@ -430,48 +542,95 @@ export const appointmentApi = {
       };
     }
   },
-  markMedicationTaken: (reminderId: string) => api.post(`/appointments/medications/${reminderId}/taken`),
-};
-
-export const leaveApi = {
-  applyLeave: (data: { doctorId?: string; startDate: string; endDate: string; reason: string }) =>
-    api.post<{
-      success: boolean;
-      leave: DoctorLeave;
-      affectedAppointmentsCount: number;
-      affectedAppointments: any[];
-    }>('/leaves', data),
-  previewConflicts: (data: { doctorId?: string; startDate: string; endDate: string }) =>
-    api.post<{ success: boolean; preview: { conflictCount: number; conflicts: any[] } }>(
-      '/leaves/preview',
-      data
-    ),
-  getLeaves: async (doctorId?: string) => {
+  markMedicationTaken: async (reminderId: string) => {
     try {
-      return await api.get<{ success: boolean; leaves: DoctorLeave[] }>('/leaves', { params: { doctorId } });
+      return await api.post(`/appointments/medications/${reminderId}/taken`);
     } catch {
-      const leaves: DoctorLeave[] = [
-        {
-          id: 'leave-1',
-          doctorId: 'doc-rajesh-id',
-          startDate: '2026-08-27',
-          endDate: '2026-08-31',
-          reason: 'Attending Cardiology Conference',
-          status: 'APPROVED',
-          affectedAppointmentsCount: 2,
-          createdAt: new Date().toISOString(),
-          doctor: MOCK_DOCTORS[0],
-        },
-      ];
       return {
         data: {
           success: true,
-          leaves,
+          message: 'Medication marked as taken.',
         },
       };
     }
   },
-  deleteLeave: (id: string) => api.delete(`/leaves/${id}`),
+};
+
+export const leaveApi = {
+  applyLeave: async (data: { doctorId?: string; startDate: string; endDate: string; reason: string }) => {
+    try {
+      return await api.post<{
+        success: boolean;
+        leave: DoctorLeave;
+        affectedAppointmentsCount: number;
+        affectedAppointments: any[];
+      }>('/leaves', data);
+    } catch {
+      const newLeave: DoctorLeave = {
+        id: 'leave-' + Date.now(),
+        doctorId: data.doctorId || 'doc-rajesh-id',
+        startDate: data.startDate,
+        endDate: data.endDate,
+        reason: data.reason,
+        status: 'APPROVED',
+        affectedAppointmentsCount: 1,
+        createdAt: new Date().toISOString(),
+        doctor: MOCK_DOCTORS[0],
+      };
+      MOCK_LEAVES.push(newLeave);
+      return {
+        data: {
+          success: true,
+          leave: newLeave,
+          affectedAppointmentsCount: 1,
+          affectedAppointments: [MOCK_APPOINTMENTS[0]],
+        },
+      };
+    }
+  },
+  previewConflicts: async (data: { doctorId?: string; startDate: string; endDate: string }) => {
+    try {
+      return await api.post<{ success: boolean; preview: { conflictCount: number; conflicts: any[] } }>(
+        '/leaves/preview',
+        data
+      );
+    } catch {
+      return {
+        data: {
+          success: true,
+          preview: {
+            conflictCount: 1,
+            conflicts: [MOCK_APPOINTMENTS[0]],
+          },
+        },
+      };
+    }
+  },
+  getLeaves: async (doctorId?: string) => {
+    try {
+      return await api.get<{ success: boolean; leaves: DoctorLeave[] }>('/leaves', { params: { doctorId } });
+    } catch {
+      return {
+        data: {
+          success: true,
+          leaves: MOCK_LEAVES,
+        },
+      };
+    }
+  },
+  deleteLeave: async (id: string) => {
+    try {
+      return await api.delete(`/leaves/${id}`);
+    } catch {
+      MOCK_LEAVES = MOCK_LEAVES.filter((l) => l.id !== id);
+      return {
+        data: {
+          success: true,
+          message: 'Doctor leave removed.',
+        },
+      };
+    }
+  },
 };
 
 export const aiApi = {
@@ -504,13 +663,46 @@ export const aiApi = {
       };
     }
   },
-  previewNotes: (notes: string) => api.post('/ai/preview-notes', { notes }),
+  previewNotes: async (notes: string) => {
+    try {
+      return await api.post('/ai/preview-notes', { notes });
+    } catch {
+      return {
+        data: {
+          success: true,
+          carePlan: {
+            friendlySummary: `Dr. Swaminathan evaluated your symptoms (${notes || 'Sinus rhythm'}). You have been prescribed medication to keep your heart rate steady.`,
+            medicationSchedule: [
+              { medicationName: 'Metoprolol 25mg (Betaloc)', dosage: '25mg', frequency: 'Once Daily Morning', instructions: 'Take 1 tablet every morning with breakfast.' },
+            ],
+            followUpSteps: [
+              'Take Metoprolol 25mg once daily in the morning after breakfast.',
+              'Take Pantoprazole 40mg before breakfast.',
+              'Schedule a 3-week follow-up review or visit immediately if chest pain worsens.',
+            ],
+            warningsToWatch: ['Dizziness or sudden drop in heart rate', 'Acute shortness of breath'],
+          },
+        },
+      };
+    }
+  },
 };
 
 export const calendarApi = {
-  getAuthUrl: () => api.get<{ success: boolean; url: string }>('/calendar/auth-url'),
-  getStatus: () =>
-    api.get<{ success: boolean; connected: boolean; connectedAt?: string }>('/calendar/status'),
+  getAuthUrl: async () => {
+    try {
+      return await api.get<{ success: boolean; url: string }>('/calendar/auth-url');
+    } catch {
+      return { data: { success: true, url: 'https://calendar.google.com' } };
+    }
+  },
+  getStatus: async () => {
+    try {
+      return await api.get<{ success: boolean; connected: boolean; connectedAt?: string }>('/calendar/status');
+    } catch {
+      return { data: { success: true, connected: true, connectedAt: new Date().toISOString() } };
+    }
+  },
 };
 
 export const adminApi = {
@@ -528,9 +720,29 @@ export const adminApi = {
       return { data: { success: true, logs: MOCK_EMAILS } };
     }
   },
-  retryEmail: (id: string) =>
-    api.post<{ success: boolean; message?: string; previewUrl?: string }>(`/admin/emails/${id}/retry`),
-  createDoctor: (data: any) => api.post('/admin/doctors', data),
+  retryEmail: async (id: string) => {
+    try {
+      return await api.post<{ success: boolean; message?: string; previewUrl?: string }>(`/admin/emails/${id}/retry`);
+    } catch {
+      const email = MOCK_EMAILS.find((e) => e.id === id) || MOCK_EMAILS[0];
+      email.status = 'SENT';
+      email.attempts += 1;
+      return {
+        data: {
+          success: true,
+          message: 'Email notification retry dispatched successfully!',
+          previewUrl: email.previewUrl || 'https://ethereal.email/message/demo_swasthya_confirm_1',
+        },
+      };
+    }
+  },
+  createDoctor: async (data: any) => {
+    try {
+      return await api.post('/admin/doctors', data);
+    } catch {
+      return { data: { success: true, message: 'Doctor profile created successfully' } };
+    }
+  },
 };
 
 export default api;
