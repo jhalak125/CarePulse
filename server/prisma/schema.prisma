@@ -1,0 +1,184 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  password         String
+  name             String
+  role             String            @default("PATIENT") // PATIENT, DOCTOR, ADMIN
+  phone            String?
+  avatarUrl        String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  doctorProfile    DoctorProfile?
+  appointments     Appointment[]     @relation("PatientAppointments")
+  slotHolds        SlotHold[]        @relation("PatientSlotHolds")
+  medReminders     MedicationReminder[]
+  googleOAuthToken GoogleOAuthToken?
+}
+
+model DoctorProfile {
+  id                  String         @id @default(uuid())
+  userId              String         @unique
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialisation      String
+  experienceYears     Int            @default(5)
+  consultationFee     Float          @default(50.0)
+  slotDurationMinutes Int            @default(30)
+  workingHoursStart   String         @default("09:00")
+  workingHoursEnd     String         @default("17:00")
+  breakStart          String?        @default("13:00")
+  breakEnd            String?        @default("14:00")
+  workingDays         String         @default("Monday,Tuesday,Wednesday,Thursday,Friday")
+  bio                 String?
+  rating              Float          @default(4.9)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  appointments        Appointment[]
+  slotHolds           SlotHold[]
+  leaves              DoctorLeave[]
+}
+
+model Appointment {
+  id                   String            @id @default(uuid())
+  patientId            String
+  patient              User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId             String
+  doctor               DoctorProfile     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  date                 String            // Format: YYYY-MM-DD
+  startTime            String            // Format: HH:mm
+  endTime              String            // Format: HH:mm
+  status               String            @default("CONFIRMED") // CONFIRMED, COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_DOCTOR_LEAVE, RESCHEDULED
+  
+  // AI Pre-Visit Data
+  symptoms             String
+  urgencyLevel         String            @default("LOW") // LOW, MEDIUM, HIGH
+  chiefComplaint       String?
+  suggestedQuestions   String?           // JSON string of array
+  aiTriageSummary      String?
+  
+  // Doctor Consultation & AI Post-Visit Data
+  clinicalNotes        String?
+  postVisitSummary     String?           // Patient-friendly LLM summary
+  followUpSteps        String?           // JSON string of array
+  
+  // Google Calendar & Meet
+  googleCalendarEventId String?
+  meetLink             String?
+  
+  cancellationReason   String?
+  reminderSent24h      Boolean           @default(false)
+  reminderSent2h       Boolean           @default(false)
+  
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  prescriptions        Prescription[]
+  
+  @@index([doctorId, date, status])
+  @@index([patientId, date])
+}
+
+model SlotHold {
+  id         String         @id @default(uuid())
+  doctorId   String
+  doctor     DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId  String
+  patient    User           @relation("PatientSlotHolds", fields: [patientId], references: [id], onDelete: Cascade)
+  date       String         // Format: YYYY-MM-DD
+  startTime  String         // Format: HH:mm
+  endTime    String         // Format: HH:mm
+  expiresAt  DateTime
+  status     String         @default("ACTIVE") // ACTIVE, CONFIRMED, EXPIRED, RELEASED
+  createdAt  DateTime       @default(now())
+
+  @@index([doctorId, date, startTime, status])
+  @@index([expiresAt, status])
+}
+
+model DoctorLeave {
+  id                        String        @id @default(uuid())
+  doctorId                  String
+  doctor                    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  startDate                 String        // Format: YYYY-MM-DD
+  endDate                   String        // Format: YYYY-MM-DD
+  reason                    String
+  status                    String        @default("APPROVED") // APPROVED, PENDING, REJECTED
+  affectedAppointmentsCount Int           @default(0)
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([doctorId, startDate, endDate])
+}
+
+model Prescription {
+  id             String               @id @default(uuid())
+  appointmentId  String
+  appointment    Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  medicationName String
+  dosage         String
+  frequency      String               // e.g., "Twice daily", "Once daily", "Every 8 hours"
+  durationDays   Int                  @default(5)
+  instructions   String?
+  startDate      DateTime             @default(now())
+  endDate        DateTime
+  createdAt      DateTime             @default(now())
+
+  reminders      MedicationReminder[]
+}
+
+model MedicationReminder {
+  id             String         @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription   @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  patientId      String
+  patient        User           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  scheduledDate  String         // YYYY-MM-DD
+  scheduledTime  String         // HH:mm
+  status         String         @default("PENDING") // PENDING, SENT, TAKEN, MISSED
+  sentAt         DateTime?
+  takenAt        DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([patientId, scheduledDate, status])
+}
+
+model EmailQueue {
+  id            String      @id @default(uuid())
+  recipient     String
+  recipientName String?
+  subject       String
+  templateType  String
+  contentHtml   String
+  status        String      @default("PENDING") // PENDING, SENT, FAILED
+  attempts      Int         @default(0)
+  lastError     String?
+  nextAttemptAt DateTime?
+  previewUrl    String?     // Ethereal URL preview
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status, nextAttemptAt])
+}
+
+model GoogleOAuthToken {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String?
+  expiryDate   BigInt?
+  scope        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

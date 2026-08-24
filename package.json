@@ -1,0 +1,37 @@
+{
+  "name": "unthinkable-healthcare-appointment-manager",
+  "version": "1.0.0",
+  "description": "Healthcare Appointment & Follow-up Manager with AI Summaries, Slot Holds, Leave Management, and Email/Calendar Sync",
+  "main": "server/src/index.ts",
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:server && npm run build:client",
+    "prisma:generate": "cd server && npx prisma generate",
+    "prisma:push": "cd server && npx prisma db push",
+    "prisma:seed": "cd server && npm run seed",
+    "setup": "npm run prisma:generate && npm run prisma:push && npm run prisma:seed",
+    "package:zip": "node export-zip.js"
+  },
+  "keywords": [
+    "healthcare",
+    "appointments",
+    "ai",
+    "gemini",
+    "google-calendar",
+    "nodemailer",
+    "prisma",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "archiver": "^7.0.1",
+    "concurrently": "^8.2.2"
+  }
+}
