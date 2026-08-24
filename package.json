@@ -1,35 +1,19 @@
 {
   "name": "unthinkable-healthcare-appointment-manager",
   "version": "1.0.0",
-  "description": "Healthcare Appointment & Follow-up Manager with AI Summaries, Slot Holds, Leave Management, and Email/Calendar Sync",
-  "main": "server/src/index.ts",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "build:server": "cd server && npm run build",
+    "dev:server": "cd server && venv/bin/uvicorn app.main:app --port 5000 --reload",
+    "dev:client": "cd client && npm run dev",
+    "build:server": "echo 'Python backend ready (app/main.py)'",
     "build:client": "cd client && npm run build",
-    "build": "npm run build:server && npm run build:client",
-    "prisma:generate": "cd server && npx prisma generate",
-    "prisma:push": "cd server && npx prisma db push",
-    "prisma:seed": "cd server && npm run seed",
-    "setup": "npm run prisma:generate && npm run prisma:push && npm run prisma:seed",
+    "build": "npm run build:client",
+    "setup": "cd server && venv/bin/python3 seed.py",
+    "install:all": "npm install && cd client && npm install && cd ../server && python3 -m venv venv && venv/bin/pip install -r requirements.txt",
     "package:zip": "node export-zip.js"
   },
-  "keywords": [
-    "healthcare",
-    "appointments",
-    "ai",
-    "gemini",
-    "google-calendar",
-    "nodemailer",
-    "prisma",
-    "react",
-    "typescript"
-  ],
-  "author": "",
-  "license": "MIT",
   "devDependencies": {
     "archiver": "^7.0.1",
     "concurrently": "^8.2.2"
