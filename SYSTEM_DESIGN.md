@@ -1,5 +1,4 @@
-# System Design Write-Up: Healthcare Appointment & Follow-up Manager (Python FastAPI)
-
+# System Design Write-Up: Care Pulse (Healthcare Appointment & Follow-up Manager)
 ## 1. Concurrency & Double-Booking Prevention
 
 ### Architecture & Mechanics
