@@ -214,13 +214,3 @@ FastAPI provides automated interactive Swagger UI at **`http://localhost:5000/do
 - `GET /api/admin/emails`: Get email delivery audit logs with live web preview links.
 - `POST /api/admin/emails/{id}/retry`: Manually trigger email retry.
 
----
-
-## 📦 Packaging Deliverable Zip Archive
-
-To generate the complete source zip archive deliverable:
-
-```bash
-npm run package:zip
-```
-This generates `unthinkable-healthcare-appointment-manager.zip` in the root folder.
