@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.jobs.scheduler import start_scheduler
 from app.routers import auth, doctors, appointments, leaves, ai, calendar, admin
 from app.utils.logger import logger
+from seed import seed_database
+from app.models.user import User
 
 # Initialize Database tables
 Base.metadata.create_all(bind=engine)
@@ -17,7 +19,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS
+# Configure CORS for all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,6 +40,19 @@ app.include_router(admin.router)
 @app.on_event("startup")
 def on_startup():
     logger.info(f"🚀 SwasthyaPulse Python Backend starting on port {settings.PORT}...")
+    
+    # Auto-seed database if empty
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        if user_count == 0:
+            logger.info("Empty database detected on startup. Auto-seeding Indian demo accounts...")
+            seed_database()
+    except Exception as e:
+        logger.error(f"Error checking database user count: {e}")
+    finally:
+        db.close()
+
     start_scheduler()
 
 @app.get("/api/health")

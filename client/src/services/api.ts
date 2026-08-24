@@ -12,7 +12,7 @@ import {
 } from '../types/index.js';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: (import.meta as any).env?.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
